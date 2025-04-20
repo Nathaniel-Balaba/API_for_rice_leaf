@@ -1,83 +1,48 @@
 <?php
 header('Content-Type: application/json');
 
-// Check if file was uploaded
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['status' => 'error', 'error' => 'Only POST requests are allowed']);
+    exit;
+}
+
 if (!isset($_FILES['image'])) {
-    echo json_encode([
-        'status' => 'error',
-        'error' => 'No image file uploaded'
-    ]);
+    echo json_encode(['status' => 'error', 'error' => 'No image file uploaded']);
     exit;
 }
 
 $file = $_FILES['image'];
 
-// Check for upload errors
 if ($file['error'] !== UPLOAD_ERR_OK) {
-    echo json_encode([
-        'status' => 'error',
-        'error' => 'File upload failed'
-    ]);
+    echo json_encode(['status' => 'error', 'error' => 'File upload failed']);
     exit;
 }
 
-// Check file type
-$allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
-if (!in_array($file['type'], $allowed_types)) {
-    echo json_encode([
-        'status' => 'error',
-        'error' => 'Invalid file type. Only JPG and PNG files are allowed.'
-    ]);
-    exit;
-}
+// Create CURLFile object
+$cfile = new CURLFile($file['tmp_name'], $file['type'], $file['name']);
 
-// API endpoint (replace with your actual API URL)
-$api_url = 'http://localhost:8000/predict';
-
-// Create cURL request
-$curl = curl_init();
-
-// Create file upload data
-$post_data = [
-    'file' => new CURLFile($file['tmp_name'], $file['type'], $file['name'])
-];
+// Initialize cURL
+$ch = curl_init();
 
 // Set cURL options
-curl_setopt_array($curl, [
-    CURLOPT_URL => $api_url,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => $post_data,
-    CURLOPT_HTTPHEADER => [
-        'Accept: application/json'
-    ]
-]);
+curl_setopt($ch, CURLOPT_URL, 'https://your-app-name.onrender.com/predict');  // Replace with your Render.com URL
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, ['image' => $cfile]);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-// Execute the request
-$response = curl_exec($curl);
-$http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-$error = curl_error($curl);
-
-// Close cURL connection
-curl_close($curl);
+// Execute cURL request
+$response = curl_exec($ch);
 
 // Check for cURL errors
-if ($error) {
-    echo json_encode([
-        'status' => 'error',
-        'error' => 'API request failed: ' . $error
-    ]);
+if (curl_errno($ch)) {
+    echo json_encode(['status' => 'error', 'error' => 'API request failed: ' . curl_error($ch)]);
+    curl_close($ch);
     exit;
 }
 
-// Check HTTP response code
-if ($http_code !== 200) {
-    echo json_encode([
-        'status' => 'error',
-        'error' => 'API returned error code: ' . $http_code
-    ]);
-    exit;
-}
+// Close cURL
+curl_close($ch);
 
-// Return the API response
-echo $response; 
+// Forward the API response
+echo $response;
+?> 
